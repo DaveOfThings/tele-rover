@@ -1,7 +1,7 @@
-use mini_redis::{client, Result};
-
-use std::task::Poll::{self, Pending, Ready};
+use std::{task::Poll::{self, Pending, Ready}, time::Duration};
 use stick::{Controller, Event, Listener};
+use tokio::{join, select, sync::oneshot, task::{self, JoinSet, LocalSet}, time::sleep};
+use tokio::sync::oneshot::{Receiver, Sender};
 
 type Exit = usize;
 
@@ -51,7 +51,38 @@ impl State {
     }
 }
 
-async fn stick_event_loop() {
+async fn stick_task() {
+    let mut js_listener = Listener::default();
+
+    
+    /*
+    // Spawn a task to listen for joystick devices
+    let listen_task = task::spawn(async move {
+        // Listen for joysticks to be added to the system.
+        let listener = Listener::default();
+        loop {
+            let controller = Arc::new(Mutex::new(listener.await));
+            js_tasks.spawn(controller);
+        }
+    });
+    */
+
+    println!("Started stick task.");
+    let mut js_tasks = LocalSet::new();
+
+    join! ( 
+        async {
+            let controller = js_listener.await;
+            js_tasks.spawn_local(controller);
+            println!("Got controller");
+        },
+        async {  // TODO-DW : Fix this.
+            let event = js_tasks.await;
+            println!("Event! {event:?}");
+        }
+    );
+
+    /*
     let mut state = State {
         listener: Listener::default(),
         controllers: Vec::new(),
@@ -62,37 +93,50 @@ async fn stick_event_loop() {
     //   listen for controllers, process with State::connect method.
     //   poll controllers, process with State::event method
     let mut futures = JoinSet::new();
-    futures.spawn(state.listener);           // Listen for new controllers
-    while let Some((id, result)) = futures.join_next_with_id().await {
-
-    }
-
-    tokio::select! {
-        controller = state.listener => {
-            // A controller was added.
-            state.connect(controller);
+    let handle = futures.spawn(state.listener);           // Listen for new controllers
+    let listener_id = handle.id();
+    while let Some(Ok((id, result))) = futures.join_next_with_id().await {
+        match id {
+            listener_id => {
+                // Stick listener found a new joystick
+                println!("Found a joystick");
+                state.controllers.push(controller);
+                futures.spawn(controller);
+            }
+            _ => {
+                // joystick event detected
+                println!("Got joystick event");
+            }
         }
-        event = tokio::select! {
-
-        }
-
     }
+    */
 
+    /*
     let player_id = Loop::new(&mut state)
         .when(|s| &mut s.listener, State::connect)
         .poll(|s| &mut s.controllers, State::event)
         .await;
+    */
 
-    println!("p{} ended the session", player_id);
+    println!("ended the session");
+}
+
+// TODO: Signal end of the program when user presses 'q'
+// (for now, just wait 30 seconds)
+// This task is in a 
+async fn quit_on_q() {
+    sleep(Duration::from_secs(10)).await;
 }
 
 #[tokio::main]
-async fn main() -> Result<()> {
-    // spawn joystick task
-    let join = task::spawn(stick_event_loop);
+async fn main() {
+    let local = task::LocalSet::new();
 
-    join.await?;
+    let t1 = local.run_until(stick_task());
+    let t2 = local.run_until(quit_on_q());
+    select! {
+        _ = t1 => { println!(" Joystick task finished."); },
+        _ = t2 => { println!(" 10 second timeout ended it."); },
+    }
     println!("All done.");
-
-    Ok(())
 }

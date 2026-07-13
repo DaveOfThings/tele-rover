@@ -5,4 +5,4 @@ edition = "2024"
 
 [dependencies]
 tokio = { version = "1", features = ["full"] }
-stick = "0.12"
+gilrs = { version = "0.11", default-features = false, features = ["xinput"] }

@@ -6,3 +6,4 @@ edition = "2024"
 [dependencies]
 tokio = { version = "1", features = ["full"] }
 gilrs = { version = "0.11", default-features = false, features = ["xinput"] }
+rumqttc = "0.25.1"

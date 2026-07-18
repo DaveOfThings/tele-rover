@@ -7,6 +7,7 @@ use crate::RobotLink;
 const MAX_TURN_SPEED_RPS: f32 = 1.0;
 const MAX_SPEED_MPS: f32 = 1.0;
 
+#[derive(Clone)]
 pub struct CommandState {
     active: bool,
     vel_mps: f32,

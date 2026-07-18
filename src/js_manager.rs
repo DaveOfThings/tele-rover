@@ -1,7 +1,7 @@
 use tokio::time;
 use std::time::Duration;
 
-use gilrs::{Button, GamepadId, Gilrs};
+use gilrs::{GamepadId, Gilrs};
 use crate::DriverControls;
 
 pub struct JsManager<'a> {

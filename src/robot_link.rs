@@ -4,7 +4,6 @@ use rumqttc::{MqttOptions, AsyncClient, QoS, EventLoop};
 use serde::Deserialize;
 use tokio::sync::Mutex;
 use std::fs;
-use tokio::task;
 use tokio::select;
 use tokio::time::{self};
 use std::time::Instant;
@@ -22,18 +21,36 @@ struct MqttHost {
 
 pub struct LinkState {
     last_heartbeat: std::time::Instant,
+    state_count: usize,
 }
 
 pub struct RobotLink {
+    client: Mutex<AsyncClient>,
+    eventloop: Mutex<EventLoop>,
     state: Mutex<LinkState>,
 }
 
 impl RobotLink {
     pub fn new() -> RobotLink {
+        let filename = "mqtt-server.yml";
+        let contents = fs::read_to_string(filename)
+            .expect("Could not read mqtt-host.yml file");
+        let host_info: MqttHost = serde_yaml::from_str(&contents)
+            .expect("Could not parse YAML");
+
+        let mut mqttoptions = MqttOptions::new("rumqtt-async", host_info.host, host_info.port);
+        mqttoptions.set_credentials(host_info.user, host_info.password);
+        mqttoptions.set_keep_alive(Duration::from_secs(5));
+
+        println!("RobotLink starting");
+        let (client, eventloop) = AsyncClient::new(mqttoptions, 10);
+
         let state = LinkState { 
             last_heartbeat: Instant::now(),
+            state_count: 0,
         };
-        RobotLink { state: Mutex::new(state) }
+
+        RobotLink { client: Mutex::new(client), eventloop: Mutex::new(eventloop), state: Mutex::new(state) }
     }
 
     pub async fn handle_msg(&self, msg: &Publish) {
@@ -52,21 +69,12 @@ impl RobotLink {
     }
 
     pub async fn run(&self) {
-        let filename = "mqtt-server.yml";
-        let contents = fs::read_to_string(filename)
-            .expect("Could not read mqtt-host.yml file");
-        let host_info: MqttHost = serde_yaml::from_str(&contents)
-            .expect("Could not parse YAML");
+        {
+            let client = self.client.lock().await;
 
-        // TODO-DW : Convert from rmqttc example to what tele-rover needs
-        let mut mqttoptions = MqttOptions::new("rumqtt-async", host_info.host, host_info.port);
-        mqttoptions.set_credentials(host_info.user, host_info.password);
-        mqttoptions.set_keep_alive(Duration::from_secs(5));
-
-        println!("RobotLink starting");
-        let (client, mut eventloop) = AsyncClient::new(mqttoptions, 10);
-        let _ = client.subscribe("robot/heartbeat", QoS::AtMostOnce).await;  // TODO: Handle errors
-        let _ = client.subscribe("robot/status", QoS::AtMostOnce).await; // TODO: Handle errors
+            let _ = client.subscribe("robot/heartbeat", QoS::AtMostOnce).await;  // TODO: Handle errors
+            let _ = client.subscribe("robot/status", QoS::AtMostOnce).await; // TODO: Handle errors
+        }
 
         // Task to send heartbeats
         let heartbeat_task = async move {
@@ -74,9 +82,7 @@ impl RobotLink {
             loop {
                 interval.tick().await;
                 {
-                    // let client= self.obsolete.lock().await;
-
-                    // TODO: Send any pending mqtt messages toward the robot
+                    let client = self.client.lock().await;
 
                     // Send heartbeat
                     // TODO: Handle error
@@ -90,6 +96,7 @@ impl RobotLink {
         let mqtt_handler = async move {
             // Listen for messages from the robot
             println!("RobotLink polling event loop");
+            let mut eventloop = self.eventloop.lock().await;
             while let Ok(notification) = eventloop.poll().await {
                 
                 match notification {
@@ -112,8 +119,6 @@ impl RobotLink {
             }
         };
 
-        // TODO-DW : Support sending command_state messages to the robot
-
         // Activate these two tasks when run() is awaited.
         // Neither should ever end.  If one does, run() terminates
         select! {
@@ -124,7 +129,12 @@ impl RobotLink {
         println!("RobotLink ending");
     }
 
-    pub async fn send(&self, command_state: &CommandState) {
-        // TODO: Send to run task using mpsc channel.
+    pub async fn send(&self, _command_state: &CommandState) {
+        // TODO: Format command_state with YML.
+
+        let mut link_state = self.state.lock().await;
+        let client = self.client.lock().await;
+        let _ = client.publish("robot/command_state", QoS::AtLeastOnce, false, format!("TBD {}", link_state.state_count)).await;
+        link_state.state_count += 1;
     }
 }

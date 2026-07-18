@@ -14,14 +14,14 @@ pub struct CommandState {
 }
 
 pub struct RobotSystem<'a> {
-    _link: &'a RobotLink,
+    link: &'a RobotLink,
     command_state: Mutex<CommandState>,
 }
 
 impl<'a> RobotSystem<'a> {
-    pub fn new(_link: &'a RobotLink) -> RobotSystem<'a> {
+    pub fn new(link: &'a RobotLink) -> RobotSystem<'a> {
         let command_state = CommandState { active:false, vel_mps: 0.0, ang_vel_rps: 0.0};
-        RobotSystem { _link, command_state: Mutex::new(command_state) }
+        RobotSystem { link, command_state: Mutex::new(command_state) }
     }
 
     pub async fn run(&self) {
@@ -31,7 +31,8 @@ impl<'a> RobotSystem<'a> {
 
             // TODO: Dare Mighty Things
             // TODO: Send command to the robot link
-            self.link.send(&self.command_state).await;
+            let state = self.command_state.lock().await;
+            self.link.send(&state).await;
         }
     }
 

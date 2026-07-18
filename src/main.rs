@@ -17,7 +17,7 @@ use driver_controls::DriverControls;
 #[tokio::main()]
 async fn main() {
     // Create RobotLink
-    let robot_link = RobotLink::default();
+    let robot_link = RobotLink::new();
     let robot_system = RobotSystem::new(&robot_link); 
 
     let (quit_tx, mut quit_rx) = mpsc::channel(1);

@@ -21,7 +21,6 @@ struct MqttHost {
 
 pub struct LinkState {
     last_heartbeat: std::time::Instant,
-    state_count: usize,
 }
 
 pub struct RobotLink {
@@ -47,7 +46,6 @@ impl RobotLink {
 
         let state = LinkState { 
             last_heartbeat: Instant::now(),
-            state_count: 0,
         };
 
         RobotLink { client: Mutex::new(client), eventloop: Mutex::new(eventloop), state: Mutex::new(state) }
@@ -134,7 +132,9 @@ impl RobotLink {
 
         let mut link_state = self.state.lock().await;
         let client = self.client.lock().await;
-        let _ = client.publish("robot/command_state", QoS::AtLeastOnce, false, format!("TBD {}", link_state.state_count)).await;
-        link_state.state_count += 1;
+
+        let s = serde_yaml::to_string(_command_state).unwrap();
+
+        let _ = client.publish("robot/command_state", QoS::AtLeastOnce, false, s).await;
     }
 }

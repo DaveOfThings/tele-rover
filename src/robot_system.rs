@@ -1,17 +1,23 @@
+use serde::Serialize;
 use tokio::time;
 use tokio::sync::Mutex;
 use std::time::Duration;
 
 use crate::RobotLink;
 
-const MAX_TURN_SPEED_RPS: f32 = 1.0;
-const MAX_SPEED_MPS: f32 = 1.0;
+const MAX_TURN_SPEED_RPS: f32 = 4.0;
+const MAX_SPEED_MPS: f32 = 2.0;
 
-#[derive(Clone)]
-pub struct CommandState {
-    active: bool,
-    vel_mps: f32,
-    ang_vel_rps: f32,
+#[derive(Clone, Copy, Default, Debug, Serialize)]
+pub struct RobotVel {
+    lin_mps: f32,
+    ang_rps: f32,
+}
+
+#[derive(Clone, Copy, Debug, Serialize)]
+pub enum CommandState {
+    Disabled,
+    Teleop(RobotVel),
 }
 
 pub struct RobotSystem<'a> {
@@ -21,7 +27,7 @@ pub struct RobotSystem<'a> {
 
 impl<'a> RobotSystem<'a> {
     pub fn new(link: &'a RobotLink) -> RobotSystem<'a> {
-        let command_state = CommandState { active:false, vel_mps: 0.0, ang_vel_rps: 0.0};
+        let command_state = CommandState::Disabled;
         RobotSystem { link, command_state: Mutex::new(command_state) }
     }
 
@@ -37,13 +43,14 @@ impl<'a> RobotSystem<'a> {
         }
     }
 
-    pub async fn toggle_active(&self) -> bool {
+    pub async fn toggle_active(&self) {
         let mut cs = self.command_state.lock().await;
-        cs.active = !cs.active;
+        *cs = match *cs {
+            CommandState::Disabled => CommandState::Teleop(RobotVel::default()),
+            CommandState::Teleop(_) => CommandState::Disabled,
+        };
 
-        println!("Toggled active state to {}", cs.active);
-
-        cs.active
+        println!("Toggled active state to {:?}", *cs);
     }
 
     pub fn get_max_vel_mps(&self) -> f32 {
@@ -56,15 +63,33 @@ impl<'a> RobotSystem<'a> {
 
     pub async fn set_lin_vel_mps(&self, vel_mps: f32) {
         let mut cs = self.command_state.lock().await;
-        cs.vel_mps = vel_mps;
+        match *cs {
+            CommandState::Disabled => {
+                *cs = CommandState::Disabled;
+                println!("It's disabled");
+            }
+            CommandState::Teleop(v) => {
+                *cs = CommandState::Teleop(RobotVel { lin_mps: vel_mps, ang_rps: v.ang_rps } );
+                println!("It's teleop");
+            }
+        }
 
         println!("Set vel {vel_mps} [m/s]");
     }
 
     pub async fn set_ang_vel_rps(&self, ang_vel_rps: f32) {
         let mut cs = self.command_state.lock().await;
-        cs.ang_vel_rps = ang_vel_rps;
+        match *cs {
+            CommandState::Disabled => {
+                *cs = CommandState::Disabled;
+                println!("It's disabled");
+            }
+            CommandState::Teleop(v) => {
+                *cs = CommandState::Teleop(RobotVel { lin_mps: v.lin_mps, ang_rps: ang_vel_rps } );
+                println!("It's teleop");
+            }
+        }
 
-        println!("Set ang vel {ang_vel_rps} [rad/s]");
+        println!("Set ang vel {ang_vel_rps} [m/s]");
     }
 }

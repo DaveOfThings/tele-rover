@@ -2,11 +2,13 @@ use serde::Serialize;
 use tokio::time;
 use tokio::sync::Mutex;
 use std::time::Duration;
+use std::f32::consts::PI;
 
 use crate::RobotLink;
 
 const MAX_TURN_SPEED_RPS: f32 = 4.0;
 const MAX_SPEED_MPS: f32 = 2.0;
+const MAX_SPIN_RPS: f32 = PI/2.0;   // 90 degrees per second.
 
 #[derive(Clone, Copy, Default, Debug, Serialize)]
 pub struct RobotVel {
@@ -61,35 +63,35 @@ impl<'a> RobotSystem<'a> {
         MAX_TURN_SPEED_RPS
     }
 
-    pub async fn set_lin_vel_mps(&self, vel_mps: f32) {
-        let mut cs = self.command_state.lock().await;
-        match *cs {
-            CommandState::Disabled => {
-                *cs = CommandState::Disabled;
-                println!("It's disabled");
-            }
-            CommandState::Teleop(v) => {
-                *cs = CommandState::Teleop(RobotVel { lin_mps: vel_mps, ang_rps: v.ang_rps } );
-                println!("It's teleop");
-            }
-        }
-
-        println!("Set vel {vel_mps} [m/s]");
+    pub fn get_max_spin_rps(&self) -> f32 {
+        MAX_SPIN_RPS
     }
 
-    pub async fn set_ang_vel_rps(&self, ang_vel_rps: f32) {
+    pub async fn set_drive(&self, lin_mps: f32, ang_rps: f32) {
         let mut cs = self.command_state.lock().await;
         match *cs {
             CommandState::Disabled => {
                 *cs = CommandState::Disabled;
                 println!("It's disabled");
             }
-            CommandState::Teleop(v) => {
-                *cs = CommandState::Teleop(RobotVel { lin_mps: v.lin_mps, ang_rps: ang_vel_rps } );
-                println!("It's teleop");
+            CommandState::Teleop(_v) => {
+                *cs = CommandState::Teleop(RobotVel { lin_mps, ang_rps } );
+                println!("It's teleop, drive");
             }
         }
+    }
 
-        println!("Set ang vel {ang_vel_rps} [m/s]");
+    pub async fn set_spin_rps(&self, spin_rps: f32) {
+        let mut cs = self.command_state.lock().await;
+        match *cs {
+            CommandState::Disabled => {
+                *cs = CommandState::Disabled;
+                println!("It's disabled");
+            }
+            CommandState::Teleop(_v) => {
+                *cs = CommandState::Teleop(RobotVel { lin_mps: 0.0, ang_rps: spin_rps } );
+                println!("It's teleop, spin");
+            }
+        }
     }
 }

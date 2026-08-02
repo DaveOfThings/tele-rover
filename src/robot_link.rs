@@ -37,7 +37,7 @@ impl RobotLink {
         let host_info: MqttHost = serde_yaml::from_str(&contents)
             .expect("Could not parse YAML");
 
-        let mut mqttoptions = MqttOptions::new("rumqtt-async", host_info.host, host_info.port);
+        let mut mqttoptions = MqttOptions::new("operator", host_info.host, host_info.port);
         mqttoptions.set_credentials(host_info.user, host_info.password);
         mqttoptions.set_keep_alive(Duration::from_secs(5));
 
@@ -58,7 +58,7 @@ impl RobotLink {
                 // Got heartbeat from robot
                 let mut state = self.state.lock().await;
                 state.last_heartbeat = Instant::now();
-                println!("Updated heartbeat time.");
+                println!("rx heartbeat.");
             }
             _ => {
                 // Ignoring unrecognized topics
@@ -85,7 +85,7 @@ impl RobotLink {
                     // Send heartbeat
                     // TODO: Handle error
                     let _ = client.publish("controller/heartbeat", QoS::AtLeastOnce, false, "still alive").await;
-                    println!("heartbeat.");
+                    println!("heartbeat tx.");
                 }
             }
         };
@@ -95,23 +95,33 @@ impl RobotLink {
             // Listen for messages from the robot
             println!("RobotLink polling event loop");
             let mut eventloop = self.eventloop.lock().await;
-            while let Ok(notification) = eventloop.poll().await {
-                
-                match notification {
-                    Event::Incoming(Incoming::Publish(msg)) => {
-                        self.handle_msg(&msg).await;
+            loop {
+                let status = eventloop.poll().await; 
+                match status {
+                    Ok(notification) => {
+                        match notification {
+                            Event::Incoming(Incoming::Publish(msg)) => {
+                                self.handle_msg(&msg).await;
+                            }
+                            Event::Outgoing(_) => {
+                                // println!("Don't need outgoing notification.");
+                            }
+                            Event::Incoming(Incoming::PubAck(_)) => {
+                                // println!("Don't need to handle pub acks.");
+                            }
+                            Event::Incoming(Incoming::PingResp) => {
+                                // println!("Don't need to handle ping responses.");
+                            }
+                            Event::Incoming(Incoming::ConnAck(as_str)) => {
+                                println!("ConnAck");
+                            }
+                            _ => {
+                                println!("Ignoring notification {:?}", notification);
+                            }
+                        }
                     }
-                    Event::Outgoing(_) => {
-                        // println!("Don't need outgoing notification.");
-                    }
-                    Event::Incoming(Incoming::PubAck(_)) => {
-                        // println!("Don't need to handle pub acks.");
-                    }
-                    Event::Incoming(Incoming::PingResp) => {
-                        // println!("Don't need to handle ping responses.");
-                    }
-                    _ => {
-                        println!("Ignoring notification {:?}", notification);
+                    Err(e) => {
+                        println!("Error from eventloop.poll: {e:?}");
                     }
                 }
             }
@@ -130,7 +140,7 @@ impl RobotLink {
     pub async fn send(&self, _command_state: &CommandState) {
         // TODO: Format command_state with YML.
 
-        let mut link_state = self.state.lock().await;
+        let link_state = self.state.lock().await;
         let client = self.client.lock().await;
 
         let s = serde_yaml::to_string(_command_state).unwrap();

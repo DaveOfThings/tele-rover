@@ -6,11 +6,11 @@ use crate::DriverControls;
 
 pub struct JsManager<'a> {
     driver_id: Option<GamepadId>,
-    driver: &'a DriverControls<'a>,
+    driver: &'a mut DriverControls<'a>,
 }
 
 impl<'a> JsManager<'a> {
-    pub fn new(driver: &'a DriverControls<'a>) -> JsManager<'a> {
+    pub fn new(driver: &'a mut DriverControls<'a>) -> JsManager<'a> {
         JsManager { driver_id: None, driver }
     }
 

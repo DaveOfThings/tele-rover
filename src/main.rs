@@ -22,8 +22,8 @@ async fn main() {
 
     let (quit_tx, mut quit_rx) = mpsc::channel(1);
 
-    let driver = DriverControls::new(&robot_system, quit_tx);
-    let mut js_manager = JsManager::new(&driver);
+    let mut driver = DriverControls::new(&robot_system, quit_tx);
+    let mut js_manager = JsManager::new(&mut driver);
     // TODO: gunner controls later.
 
     // Run all the tasks.  If one quits, the app ends.

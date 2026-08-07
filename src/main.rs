@@ -12,12 +12,22 @@ use robot_link::RobotLink;
 use robot_system::RobotSystem;
 use js_manager::JsManager;
 use driver_controls::DriverControls;
+use clap::Parser;
 
+#[derive(Parser, Debug)]
+#[command(version, about, long_about = None)]
+struct Args {
+    /// Name of the person to greet
+    #[arg(short, long, default_value_t=String::from("mqtt-server.yml"))]
+    config: String,
+}
 
 #[tokio::main()]
 async fn main() {
+    let args = Args::parse();
+
     // Create RobotLink
-    let robot_link = RobotLink::new();
+    let robot_link = RobotLink::new(&args.config);
     let robot_system = RobotSystem::new(&robot_link); 
 
     let (quit_tx, mut quit_rx) = mpsc::channel(1);

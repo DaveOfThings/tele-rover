@@ -30,10 +30,23 @@ pub struct RobotLink {
 }
 
 impl RobotLink {
-    pub fn new() -> RobotLink {
-        let filename = "mqtt-server.yml";
-        let contents = fs::read_to_string(filename)
-            .expect("Could not read mqtt-host.yml file");
+    const DEFAULT_FILENAME: &str = "mqtt-server.yml";
+
+    pub fn new(filename: &str) -> RobotLink {
+        let contents = match fs::read_to_string(filename) {
+            Ok(s) => s,
+            Err(_) => {
+                println!("Couldn't open config file: {}", filename);
+                println!("Using default config file: {}", Self::DEFAULT_FILENAME);
+                match fs::read_to_string(Self::DEFAULT_FILENAME) {
+                    Ok(s) => s,
+                    Err(_) => {
+                        panic!("Couldn't open default config file: {}", Self::DEFAULT_FILENAME);
+                    },
+                }
+            },
+        };
+
         let host_info: MqttHost = serde_yaml::from_str(&contents)
             .expect("Could not parse YAML");
 

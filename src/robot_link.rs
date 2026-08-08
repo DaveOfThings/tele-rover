@@ -125,7 +125,7 @@ impl RobotLink {
                             Event::Incoming(Incoming::PingResp) => {
                                 // println!("Don't need to handle ping responses.");
                             }
-                            Event::Incoming(Incoming::ConnAck(as_str)) => {
+                            Event::Incoming(Incoming::ConnAck(_conn_ack)) => {
                                 println!("ConnAck");
                             }
                             _ => {
@@ -153,7 +153,6 @@ impl RobotLink {
     pub async fn send(&self, _command_state: &CommandState) {
         // TODO: Format command_state with YML.
 
-        let link_state = self.state.lock().await;
         let client = self.client.lock().await;
 
         let s = serde_yaml::to_string(_command_state).unwrap();

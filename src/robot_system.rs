@@ -6,14 +6,31 @@ use std::f32::consts::PI;
 
 use crate::RobotLink;
 
-const MAX_TURN_SPEED_RPS: f32 = 4.0;
 const MAX_SPEED_MPS: f32 = 2.0;
 const MAX_SPIN_RPS: f32 = PI/2.0;   // 90 degrees per second.
+const MAX_CURVATURE: f32 = 1.0;     // radians per meter
 
 #[derive(Clone, Copy, Default, Debug, Serialize)]
-pub struct RobotVel {
+pub struct DriveSpeed {
     lin_mps: f32,
-    ang_rps: f32,
+    curvature: f32,
+}
+
+#[derive(Clone, Copy, Default, Debug, Serialize)]
+pub struct SpinRate {
+    spin_rps: f32,
+}
+
+#[derive(Clone, Copy, Debug, Serialize)]
+pub enum RobotVel {
+    Drive(DriveSpeed),
+    Spin(SpinRate),
+}
+
+impl RobotVel {
+    fn default() -> RobotVel {
+        RobotVel::Drive( DriveSpeed { lin_mps: 0.0, curvature: 0.0 })
+    }
 }
 
 #[derive(Clone, Copy, Debug, Serialize)]
@@ -59,15 +76,15 @@ impl<'a> RobotSystem<'a> {
         MAX_SPEED_MPS
     }
 
-    pub fn get_max_ang_vel_rps(&self) -> f32 {
-        MAX_TURN_SPEED_RPS
+    pub fn get_max_curvature(&self) -> f32 {
+        MAX_CURVATURE
     }
 
     pub fn get_max_spin_rps(&self) -> f32 {
         MAX_SPIN_RPS
     }
 
-    pub async fn set_drive(&self, lin_mps: f32, ang_rps: f32) {
+    pub async fn set_drive(&self, lin_mps: f32, curvature: f32) {
         let mut cs = self.command_state.lock().await;
         match *cs {
             CommandState::Disabled => {
@@ -75,7 +92,7 @@ impl<'a> RobotSystem<'a> {
                 println!("It's disabled");
             }
             CommandState::Teleop(_v) => {
-                *cs = CommandState::Teleop(RobotVel { lin_mps, ang_rps } );
+                *cs = CommandState::Teleop( RobotVel::Drive(DriveSpeed { lin_mps, curvature } ));
                 println!("It's teleop, drive");
             }
         }
@@ -89,7 +106,7 @@ impl<'a> RobotSystem<'a> {
                 println!("It's disabled");
             }
             CommandState::Teleop(_v) => {
-                *cs = CommandState::Teleop(RobotVel { lin_mps: 0.0, ang_rps: spin_rps } );
+                *cs = CommandState::Teleop(RobotVel::Spin(SpinRate { spin_rps } ));
                 println!("It's teleop, spin");
             }
         }

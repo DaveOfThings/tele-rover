@@ -23,14 +23,14 @@ impl<'a> DriverControls<'a> {
         // TODO: Figure out if we should send drive or spin
         if self.left_x.abs() > self.left_y.abs() {
             // spin
-            let turn_speed_rps = self.left_x * self.robot_system.get_max_ang_vel_rps();
+            let turn_speed_rps = self.left_x * self.robot_system.get_max_spin_rps();
             self.robot_system.set_spin_rps(turn_speed_rps).await;
         }
         else {
             // drive
-            let turn_speed_rps = self.right_x * self.robot_system.get_max_ang_vel_rps();
+            let curvature = self.right_x * self.robot_system.get_max_curvature();
             let lin_mps = self.left_y * self.robot_system.get_max_vel_mps();
-            self.robot_system.set_drive(lin_mps, turn_speed_rps).await;
+            self.robot_system.set_drive(lin_mps, curvature).await;
         }
     }
 

@@ -10,7 +10,6 @@ use std::time::Instant;
 
 use crate::robot_system::CommandState;
 
-// Define a struct that mirrors your YAML structure
 #[derive(Debug, Deserialize)]
 struct MqttHost {
     host: String,
@@ -47,7 +46,7 @@ impl RobotLink {
             },
         };
 
-        let host_info: MqttHost = serde_yaml::from_str(&contents)
+        let host_info: MqttHost = serde_yml::from_str(&contents)
             .expect("Could not parse YAML");
 
         let mut mqttoptions = MqttOptions::new("operator", host_info.host, host_info.port);
@@ -155,7 +154,7 @@ impl RobotLink {
 
         let client = self.client.lock().await;
 
-        let s = serde_yaml::to_string(_command_state).unwrap();
+        let s = serde_json::to_string(_command_state).unwrap();
 
         let _ = client.publish("robot/command_state", QoS::AtLeastOnce, false, s).await;
     }

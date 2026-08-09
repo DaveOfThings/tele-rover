@@ -8,7 +8,7 @@ use crate::RobotLink;
 
 const MAX_SPEED_MPS: f32 = 2.0;
 const MAX_SPIN_RPS: f32 = PI/2.0;   // 90 degrees per second.
-const MAX_CURVATURE: f32 = 1.0;     // radians per meter
+const MAX_CURVATURE: f32 = 3.0;     // radians per meter
 
 #[derive(Clone, Copy, Default, Debug, Serialize)]
 pub struct DriveSpeed {

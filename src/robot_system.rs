@@ -55,8 +55,6 @@ impl<'a> RobotSystem<'a> {
         loop {
             interval.tick().await;
 
-            // TODO: Dare Mighty Things
-            // TODO: Send command to the robot link
             let state = self.command_state.lock().await;
             self.link.send(&state).await;
         }
@@ -89,11 +87,11 @@ impl<'a> RobotSystem<'a> {
         match *cs {
             CommandState::Disabled => {
                 *cs = CommandState::Disabled;
-                println!("It's disabled");
+                // println!("It's disabled");
             }
             CommandState::Teleop(_v) => {
                 *cs = CommandState::Teleop( RobotVel::Drive(DriveSpeed { lin_mps, curvature } ));
-                println!("It's teleop, drive");
+                // println!("It's teleop, drive");
             }
         }
     }
@@ -103,11 +101,11 @@ impl<'a> RobotSystem<'a> {
         match *cs {
             CommandState::Disabled => {
                 *cs = CommandState::Disabled;
-                println!("It's disabled");
+                // println!("It's disabled");
             }
             CommandState::Teleop(_v) => {
                 *cs = CommandState::Teleop(RobotVel::Spin(SpinRate { spin_rps } ));
-                println!("It's teleop, spin");
+                // println!("It's teleop, spin");
             }
         }
     }

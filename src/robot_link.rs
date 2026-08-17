@@ -64,13 +64,13 @@ impl RobotLink {
     }
 
     pub async fn handle_msg(&self, msg: &Publish) {
-        println!("Received = {:?}", msg);
+        // println!("Received = {:?}", msg);
         match msg.topic.as_str() {
             "robot/heartbeat" => {
                 // Got heartbeat from robot
                 let mut state = self.state.lock().await;
                 state.last_heartbeat = Instant::now();
-                println!("rx heartbeat.");
+                // println!("rx heartbeat.");
             }
             _ => {
                 // Ignoring unrecognized topics
@@ -88,7 +88,7 @@ impl RobotLink {
 
         // Task to send heartbeats
         let heartbeat_task = async move {
-            let mut interval = time::interval(Duration::from_secs(1));
+            let mut interval = time::interval(Duration::from_millis(250));
             loop {
                 interval.tick().await;
                 {
@@ -97,7 +97,7 @@ impl RobotLink {
                     // Send heartbeat
                     // TODO: Handle error
                     let _ = client.publish("controller/heartbeat", QoS::AtLeastOnce, false, "still alive").await;
-                    println!("heartbeat tx.");
+                    // println!("heartbeat tx.");
                 }
             }
         };

@@ -40,6 +40,7 @@ pub enum CommandState {
 }
 
 pub struct RobotSystem<'a> {
+    quit_rover: Mutex<bool>,
     link: &'a RobotLink,
     command_state: Mutex<CommandState>,
 }
@@ -47,7 +48,7 @@ pub struct RobotSystem<'a> {
 impl<'a> RobotSystem<'a> {
     pub fn new(link: &'a RobotLink) -> RobotSystem<'a> {
         let command_state = CommandState::Disabled;
-        RobotSystem { link, command_state: Mutex::new(command_state) }
+        RobotSystem { quit_rover: Mutex::new(false), link, command_state: Mutex::new(command_state) }
     }
 
     pub async fn run(&self) {
@@ -55,8 +56,16 @@ impl<'a> RobotSystem<'a> {
         loop {
             interval.tick().await;
 
-            let state = self.command_state.lock().await;
-            self.link.send(&state).await;
+            {
+                let state = self.command_state.lock().await;
+                self.link.send(&state).await;
+            }
+            {
+                let quit_rover = self.quit_rover.lock().await;
+                if *quit_rover {
+                    self.link.send_quit().await;
+                }
+            }
         }
     }
 
@@ -108,5 +117,10 @@ impl<'a> RobotSystem<'a> {
                 // println!("It's teleop, spin");
             }
         }
+    }
+
+    pub async fn set_quit_rover(&self, quit_rover_param: bool) {
+        let mut quit_rover = self.quit_rover.lock().await;
+        *quit_rover = quit_rover_param;
     }
 }

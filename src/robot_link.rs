@@ -158,4 +158,12 @@ impl RobotLink {
 
         let _ = client.publish("robot/command_state", QoS::AtLeastOnce, false, s).await;
     }
+
+    pub async fn send_quit(&self) {
+        let client = self.client.lock().await;
+
+        let s = String::from("Die");
+
+        let _ = client.publish("robot/quit", QoS::AtLeastOnce, false, s).await;
+    }
 }
